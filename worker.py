@@ -1,7 +1,9 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
-import tensorflow as tf
+import sys
 import os
 import json
+os.environ["TF_CONFIG"] = json.dumps({ "cluster": { "worker": ["192.168.11.113:3745", "192.168.11.162:3746"] }, "task": {"type": "worker", "index": sys.argv[1]} })
+import tensorflow as tf
 
 from tensorflow import keras
 import resnet
@@ -10,7 +12,7 @@ import resnet
 Remember to set the TF_CONFIG envrionment variable.
 
 For example:
-
+export TF_CONFIG='{ "cluster": { "worker": ["192.168.11.113:3745", "192.168.11.162:3746"] }, "task": {"type": "worker", "index": 0} }'
 export TF_CONFIG='{"cluster": {"worker": ["10.1.10.58:12345", "10.1.10.250:12345"]}, "task": {"index": 0, "type": "worker"}}'
 """
 
@@ -62,7 +64,7 @@ train_dataset = tf.data.Dataset.from_tensor_slices((x,y))
 test_dataset = tf.data.Dataset.from_tensor_slices((x_test, y_test))
 
 tf.random.set_seed(22)
-train_dataset = train_dataset.map(augmentation).map(normalize).shuffle(NUM_TRAIN_SAMPLES).batch(BS_PER_GPU * NUM_GPUS, drop_remainder=True)
+train_dataset = train_dataset.map(augmentation).map(normalize).shuffle(NUM_TRAIN_SAMPLES).batch(BS_PER_GPU * NUM_GPUS, drop_remainder=True).repeat()
 test_dataset = test_dataset.map(normalize).batch(BS_PER_GPU * NUM_GPUS, drop_remainder=True)
 
 
@@ -78,4 +80,5 @@ with strategy.scope():
             loss='sparse_categorical_crossentropy',
             metrics=['sparse_categorical_accuracy']) 
 model.fit(train_dataset,
-          epochs=NUM_EPOCHS)
+          epochs=NUM_EPOCHS,
+          steps_per_epoch=NUM_TRAIN_SAMPLES//(BS_PER_GPU * NUM_GPUS))
